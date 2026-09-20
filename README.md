@@ -4,24 +4,51 @@ A portfolio project that automates a multi-source business reporting workflow: i
 
 ## Current milestone
 
-**Milestone 1: Synthetic dataset generator**
+**Milestone 2: ETL pipeline**
 
-The generator creates 112 days of reproducible demo data across four source types:
+The project now has two working layers:
 
-- `sales.csv` — sales opportunities and converted revenue
-- `support_tickets.json` — support tickets, later exposed through a mock REST API
-- `operations.db` — SQLite source containing operational jobs
-- `staffing.csv` — daily staffing and absence data
+1. **Synthetic source generation** creates 112 days of reproducible business data.
+2. **ETL (Extract, Transform, Load)** reads every source, validates business/data-quality rules, quarantines invalid records, and loads clean reporting tables into SQLite.
 
-The generated data intentionally contains a small number of missing, anomalous, and impossible values so the ETL milestone has realistic validation work to perform.
+### Raw sources
+
+- `data/raw/sales.csv` — sales opportunities and revenue
+- `data/raw/support_tickets.json` — support tickets, later exposed through a mock REST API
+- `data/raw/operations.db` — operational jobs
+- `data/raw/staffing.csv` — daily staffing and absence data
+
+### Processed database
+
+Running ETL creates `data/processed/reporting.db` with:
+
+- `sales_clean`
+- `support_clean`
+- `operations_clean`
+- `staffing_clean`
+- `etl_rejections`
+- `etl_runs`
+- `etl_run_source_stats`
+
+Invalid records are retained with explicit rejection reasons and their original values. They never enter KPI calculations.
+
+A large but valid transaction remains in clean data. It is an **anomaly**, not a data-quality failure, and will be handled by the later anomaly-detection layer.
 
 ## Run
+
+Generate/reset source data:
 
 ```bash
 python scripts/generate_demo_data.py
 ```
 
-## Test
+Run ETL:
+
+```bash
+python scripts/run_etl.py
+```
+
+Run tests:
 
 ```bash
 pytest
