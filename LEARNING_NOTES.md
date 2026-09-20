@@ -64,3 +64,63 @@ For this portfolio project, each ETL run recreates the processed SQLite database
 - primary/unique identifiers
 - row-level vs schema-level validation
 - why observability and rejected-record storage matter in data systems
+
+## Milestone 3 — KPI engine
+
+### KPI
+A **Key Performance Indicator (KPI)** is a deliberately defined measurement used to monitor an important business outcome. A KPI is not merely any number on a dashboard; its formula, population, time window, and units must be explicit.
+
+Example:
+
+```text
+conversion rate = converted opportunities / all opportunities × 100
+```
+
+Changing the denominator changes the meaning, so metric definitions belong in reusable code rather than being recreated independently in each chart.
+
+### Current period vs comparison period
+Revenue growth requires two equal-length windows:
+
+```text
+previous 7 days → baseline
+current 7 days  → measured period
+
+% change = (current - previous) / previous × 100
+```
+
+When the previous value is zero, percentage growth is undefined. The KPI engine returns `None` instead of fabricating an infinite or misleading percentage.
+
+### Cross-source KPI
+Productivity combines two trusted datasets:
+
+```text
+completed jobs / staffing hours × 100
+```
+
+This is an example of why ETL normalization matters. Once operations and staffing use consistent dates and department names, the reporting layer can combine them safely.
+
+### Deterministic calculation vs AI interpretation
+The application calculates every KPI itself. A later LLM receives the completed metric snapshot and may explain changes, but it does not perform the authoritative arithmetic.
+
+```text
+clean data
+   ↓
+deterministic KPI functions
+   ↓
+validated metric snapshot
+   ↓
+AI interpretation later
+```
+
+This separation reduces hallucination risk and makes every reported number testable.
+
+### Targets
+The project uses explicit fictional weekly revenue targets for department comparison. A target is a management assumption, not a fact derived from the dataset. Keeping targets visible in configuration/code makes the comparison auditable.
+
+### What to study
+- numerator and denominator selection in KPI definitions
+- time-window filtering
+- percentage change and divide-by-zero behavior
+- pandas `groupby`
+- why pure/reusable calculation functions are easier to test
+- cross-source metrics and consistent dimensions

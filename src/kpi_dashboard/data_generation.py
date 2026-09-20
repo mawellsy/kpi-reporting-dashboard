@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from dataclasses import dataclass
+from datetime import timedelta
 from pathlib import Path
 
 import numpy as np
@@ -150,11 +151,11 @@ class SyntheticDataGenerator:
 
                 for _ in range(count):
                     opened_hour = int(self.rng.integers(8, 18))
-                    opened_at = pd.Timestamp(date) + pd.Timedelta(hours=opened_hour, minutes=int(self.rng.integers(0, 60)))
+                    opened_at = pd.Timestamp(date) + timedelta(hours=opened_hour, minutes=int(self.rng.integers(0, 60)))
                     unresolved = self.rng.random() < (0.09 + absence_ratio * 0.45)
                     base_hours = self.rng.gamma(shape=2.0, scale=4.5)
                     resolution_hours = base_hours * (1 + absence_ratio * 4)
-                    resolved_at = None if unresolved else opened_at + pd.Timedelta(hours=float(resolution_hours))
+                    resolved_at = None if unresolved else opened_at + timedelta(hours=float(resolution_hours))
                     satisfaction = None if unresolved else int(np.clip(round(self.rng.normal(4.25 - absence_ratio * 2, 0.65)), 1, 5))
                     rows.append(
                         {
@@ -198,7 +199,7 @@ class SyntheticDataGenerator:
                     status = "completed" if self.rng.random() > 0.04 else "open"
                     completed_date = None
                     if status == "completed":
-                        completed_date = (date + pd.Timedelta(days=1 if delayed else 0)).date().isoformat()
+                        completed_date = (date + timedelta(days=1 if delayed else 0)).date().isoformat()
 
                     rows.append(
                         {

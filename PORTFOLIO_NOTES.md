@@ -52,3 +52,28 @@ Automate a multi-source management reporting workflow from raw operational data 
 - I can consolidate CSV/API/database sources into a validated reporting layer.
 - I design reporting pipelines so bad source data is visible and auditable rather than silently contaminating KPIs.
 - I separate deterministic calculations from AI interpretation so management numbers remain trustworthy.
+
+## Milestone 3 — Problems solved
+- Converted trusted operational records into reusable management KPIs.
+- Centralized metric definitions so charts and reports will use identical formulas.
+- Added equal-period week-over-week comparisons instead of comparing mismatched date ranges.
+- Added a cross-source productivity metric that combines completed jobs with staffing hours.
+- Added explicit department revenue targets and ranking by target attainment.
+- Kept all authoritative arithmetic deterministic and outside the future LLM summary layer.
+- Removed noisy `Timedelta` deprecation warnings from synthetic data generation.
+
+## Milestone 3 — Skills demonstrated
+- reusable analytics functions
+- business metric definition
+- period-over-period comparison
+- pandas aggregation and filtering
+- cross-source KPI calculation
+- explicit handling of undefined percentage change
+- unit and integration testing for analytics code
+
+## Milestone 3 — Demo moments
+- run `python scripts/calculate_kpis.py` after ETL
+- show the current and previous seven-day windows
+- show revenue growth, conversion rate, support resolution time, and operations productivity
+- show department performance versus explicit targets
+- explain that the same tested KPI functions will feed both the dashboard and AI management summary
