@@ -5,6 +5,7 @@ from typing import Mapping
 
 import pandas as pd
 
+from .anomalies import Anomaly, detect_anomalies
 from .kpis import DateWindow, KPISnapshot, calculate_snapshot, filter_period
 
 
@@ -23,6 +24,7 @@ class DashboardData:
     support_trend: pd.DataFrame
     operations_trend: pd.DataFrame
     department_performance: pd.DataFrame
+    anomalies: tuple[Anomaly, ...]
 
 
 def get_filter_options(frames: Mapping[str, pd.DataFrame]) -> FilterOptions:
@@ -139,4 +141,13 @@ def build_dashboard_data(
         support_trend=_support_trend(support, window),
         operations_trend=_operations_trend(operations, window),
         department_performance=pd.DataFrame(snapshot.departments),
+        anomalies=tuple(
+            detect_anomalies(
+                frames,
+                window,
+                department=department,
+                region=region,
+                snapshot=snapshot,
+            )
+        ),
     )

@@ -4,14 +4,15 @@ A portfolio project that automates a multi-source business reporting workflow: i
 
 ## Current milestone
 
-**Milestone 4: interactive dashboard**
+**Milestone 5: deterministic anomaly detection**
 
-The project now has four working layers:
+The project now has five working layers:
 
 1. **Synthetic source generation** creates 112 days of reproducible business data.
 2. **ETL (Extract, Transform, Load)** validates four source types, quarantines invalid rows, and loads trusted reporting tables into SQLite.
 3. **KPI engine** calculates reusable sales, support, operations, and department metrics from clean data.
 4. **Streamlit dashboard** exposes the same tested KPI logic through management pages, charts, and shared filters.
+5. **Anomaly detection** applies explicit threshold, recent-average, and missed-target rules to validated KPI results.
 
 ## Raw sources
 
@@ -123,6 +124,24 @@ python scripts/generate_demo_data.py
 python scripts/run_etl.py
 streamlit run dashboard/app.py
 ```
+
+## Anomaly detection
+
+The anomaly layer is deterministic and intentionally simple. It currently checks:
+
+- **Threshold change:** company revenue growth at or below a configured decline threshold.
+- **Recent average deviation:** delayed jobs materially above the mean of recent equal-length reporting periods.
+- **Missed targets:** departments below their scaled revenue target.
+
+Rules operate on validated KPI outputs; they do not replace source-data validation. Thresholds are explicit in `src/kpi_dashboard/anomalies.py`, making each flag auditable and testable.
+
+Run the latest seven-day anomaly scan:
+
+```bash
+python scripts/detect_anomalies.py
+```
+
+The Executive Overview also shows triggered anomalies using the same date, department, and region filters as the rest of the dashboard.
 
 ## Design principle
 

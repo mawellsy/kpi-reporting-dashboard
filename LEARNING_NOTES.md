@@ -168,3 +168,50 @@ A day with zero tickets is still a real calendar day. Chart data therefore fills
 - Plotly figure construction
 - Streamlit rerun/caching model
 - why consistent KPI definitions matter across every reporting surface
+
+## Milestone 5 — Anomaly detection
+
+### Validation vs anomaly detection
+Validation asks whether a record is trustworthy enough to enter reporting. Anomaly detection starts only after validation and asks whether trustworthy business behavior is unusual enough to investigate.
+
+```text
+raw data
+   ↓
+validation
+   ├─ invalid → quarantine
+   └─ valid
+        ↓
+       KPIs
+        ↓
+anomaly rules
+   ├─ normal → no alert
+   └─ unusual → explainable flag
+```
+
+A high number of delayed jobs can be valid data and still deserve management attention. Treating every unusual value as invalid would erase exactly the events the reporting system is meant to reveal.
+
+### Rule-based detection
+This project begins with explicit rules rather than machine learning because the rules are easy to explain, test, and tune with business owners.
+
+Current rule families:
+
+1. **Threshold change** — compare a KPI with a fixed business threshold.
+2. **Recent-average deviation** — compare the current period with recent equal-length periods.
+3. **Missed target** — compare actual performance with an explicit management target.
+
+### Comparable historical baselines
+A seven-day reporting period is compared with prior seven-day periods. A fourteen-day reporting period is compared with prior fourteen-day periods. Matching window length avoids creating an anomaly merely because one period contains more days.
+
+### Heuristics are assumptions
+An anomaly threshold is not a mathematical truth. For example, “30% above the recent average” is a configurable business heuristic. Production thresholds should be tuned using business impact, false-positive cost, seasonality, and stakeholder feedback.
+
+### Why not machine learning yet?
+Machine learning is useful when behavior is complex enough that explicit rules become brittle or incomplete. It also introduces model training, evaluation, drift, and explainability requirements. For this portfolio system, transparent deterministic rules solve the stated business need with less operational risk.
+
+### What to study
+- false positives and false negatives
+- baselines and seasonality
+- threshold tuning
+- rolling averages and equal-period comparisons
+- rule-based detection vs statistical/ML anomaly detection
+- why anomaly explanations matter for operational adoption

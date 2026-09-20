@@ -54,9 +54,33 @@ def metric_row(data) -> None:
     c4.metric("Completion rate", number(operations.completion_rate_pct, "%"))
 
 
+def render_anomalies(data) -> None:
+    st.subheader("Anomalies requiring attention")
+    if not data.anomalies:
+        st.success("No configured anomaly rules were triggered for this selection.")
+        return
+
+    rows = []
+    for item in data.anomalies:
+        rows.append(
+            {
+                "Severity": item.severity.title(),
+                "Rule": item.category.replace("_", " ").title(),
+                "Scope": item.scope,
+                "Metric": item.metric.replace("_", " ").title(),
+                "Current": item.current_value,
+                "Reference": item.reference_value,
+                "Deviation %": item.deviation_pct,
+                "Explanation": item.message,
+            }
+        )
+    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+
 def render_executive(data) -> None:
     st.header("Executive Overview")
     metric_row(data)
+    render_anomalies(data)
 
     left, right = st.columns(2)
     with left:

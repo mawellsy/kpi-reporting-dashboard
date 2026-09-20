@@ -107,3 +107,33 @@ Automate a multi-source management reporting workflow from raw operational data 
 - I can turn validated operational data into management dashboards without duplicating metric logic across reports and charts.
 - I design filter behavior so users compare consistent populations and equal time periods.
 - I keep business calculations testable and independent from the visualization framework, which makes future API or frontend changes safer.
+
+## Milestone 5 — Problems solved
+- Added deterministic anomaly rules without introducing unnecessary machine learning.
+- Separated invalid-data handling from unusual-but-valid business behavior.
+- Added three explainable rule families: threshold change, recent-average deviation, and missed target.
+- Compared delayed jobs against prior equal-length periods so the baseline matches the selected reporting window.
+- Reused the dashboard's date/department/region filter context for anomaly detection.
+- Surfaced anomaly explanations directly on the Executive Overview.
+
+## Milestone 5 — Skills demonstrated
+- rule-based anomaly detection
+- historical baseline construction
+- deterministic alert thresholds
+- time-window comparison
+- explainable management alerts
+- dashboard integration
+- automated testing of detection rules
+
+## Milestone 5 — Demo moments
+- run `python scripts/detect_anomalies.py` and show structured anomaly output
+- explain the difference between invalid source data and a valid business anomaly
+- show the latest revenue decline threshold breach
+- show delayed jobs compared with the previous four equal-length periods
+- show Southeast and Southwest below scaled revenue targets
+- change dashboard filters and show the anomaly set change with the selected business scope
+
+## Milestone 5 — Upwork talking points
+- I build anomaly systems with explicit, auditable business rules before reaching for machine learning.
+- I compare current performance with structurally comparable historical periods rather than arbitrary baselines.
+- I keep alert explanations tied to calculated values and references so managers can see why a flag was raised.
