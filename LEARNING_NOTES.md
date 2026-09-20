@@ -124,3 +124,47 @@ The project uses explicit fictional weekly revenue targets for department compar
 - pandas `groupby`
 - why pure/reusable calculation functions are easier to test
 - cross-source metrics and consistent dimensions
+
+
+## Milestone 4 — Dashboard
+
+### Presentation layer vs business logic
+A dashboard should display metrics, not redefine them. The Streamlit application consumes the same tested KPI functions used by scripts and future reports. This creates one source of truth for formulas.
+
+```text
+trusted SQL data
+      ↓
+KPI calculation layer
+      ↓
+chart-ready dashboard data
+      ↓
+Streamlit presentation
+```
+
+If a formula were copied into each chart, the dashboard, scheduled report, and AI summary could disagree while all appearing plausible. Centralizing the calculation prevents that class of reporting drift.
+
+### Shared filters
+Date, department, and region are dimensions that change the population included in a KPI. The filter is applied before aggregation so every metric and chart on the page describes the same slice of the business.
+
+### Equal comparison periods
+A selected 14-day period is compared with the preceding 14 days, not with an arbitrary seven-day baseline. This keeps percentage-change comparisons structurally fair.
+
+### Target scaling
+Department targets are defined weekly. For a selected reporting window, the dashboard scales them proportionally:
+
+```text
+selected target = weekly target × selected days / 7
+```
+
+The targets remain explicit fictional management assumptions, not values inferred by AI.
+
+### Continuous time series
+A day with zero tickets is still a real calendar day. Chart data therefore fills the complete selected date range and represents no activity as zero rather than omitting the date. This prevents misleading gaps and makes day-to-day comparisons easier to read.
+
+### What to study
+- separation of business logic from presentation
+- dashboard filter semantics
+- time-series aggregation and missing dates
+- Plotly figure construction
+- Streamlit rerun/caching model
+- why consistent KPI definitions matter across every reporting surface

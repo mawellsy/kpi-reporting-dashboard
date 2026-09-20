@@ -77,3 +77,33 @@ Automate a multi-source management reporting workflow from raw operational data 
 - show revenue growth, conversion rate, support resolution time, and operations productivity
 - show department performance versus explicit targets
 - explain that the same tested KPI functions will feed both the dashboard and AI management summary
+
+
+## Milestone 4 — Problems solved
+- Turned the tested KPI engine into a usable management dashboard instead of duplicating formulas in UI code.
+- Added one shared date/department/region filter model across all management pages.
+- Added an equal-length comparison period for arbitrary user-selected date ranges.
+- Scaled weekly department targets to the selected reporting-window length.
+- Preserved zero-activity calendar days in chart series so trends do not silently skip dates.
+- Added chart-ready daily sales, support, and operations datasets with automated tests.
+
+## Milestone 4 — Skills demonstrated
+- Streamlit application development
+- Plotly business visualization
+- presentation-layer architecture
+- reusable analytics integration
+- interactive filtering
+- time-series preparation
+- dashboard data testing
+
+## Milestone 4 — Demo moments
+- open the Executive Overview and explain the top-line KPI cards
+- switch department or region and show every chart/KPI update from the same filter context
+- change the date range and explain equal-period comparison plus target scaling
+- open the Department Comparison page and show revenue versus target and prior-period change
+- emphasize that charts consume the same deterministic KPI layer used by automated reporting
+
+## Milestone 4 — Upwork talking points
+- I can turn validated operational data into management dashboards without duplicating metric logic across reports and charts.
+- I design filter behavior so users compare consistent populations and equal time periods.
+- I keep business calculations testable and independent from the visualization framework, which makes future API or frontend changes safer.

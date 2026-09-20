@@ -22,6 +22,14 @@ class DateWindow:
     start: pd.Timestamp
     end: pd.Timestamp
 
+    def __post_init__(self) -> None:
+        start = pd.Timestamp(self.start).normalize()
+        end = pd.Timestamp(self.end).normalize()
+        if end < start:
+            raise ValueError("end date cannot precede start date")
+        object.__setattr__(self, "start", start)
+        object.__setattr__(self, "end", end)
+
     @classmethod
     def ending_on(cls, end: str | pd.Timestamp, days: int = 7) -> "DateWindow":
         if days <= 0:
@@ -29,10 +37,13 @@ class DateWindow:
         end_ts = pd.Timestamp(end).normalize()
         return cls(start=end_ts - timedelta(days=int(days) - 1), end=end_ts)
 
+    @property
+    def days(self) -> int:
+        return (self.end - self.start).days + 1
+
     def previous(self) -> "DateWindow":
-        days = (self.end - self.start).days + 1
         previous_end = self.start - timedelta(days=1)
-        return DateWindow.ending_on(previous_end, days=days)
+        return DateWindow.ending_on(previous_end, days=self.days)
 
 
 @dataclass(frozen=True)
@@ -94,6 +105,21 @@ def percentage_change(current: float, previous: float) -> float | None:
     return ((current - previous) / previous) * 100
 
 
+def filter_scope(
+    frame: pd.DataFrame,
+    *,
+    department: str | None = None,
+    region: str | None = None,
+) -> pd.DataFrame:
+    """Apply optional department/region filters without changing the source frame."""
+    mask = pd.Series(True, index=frame.index)
+    if department is not None:
+        mask &= frame["department"].eq(department)
+    if region is not None:
+        mask &= frame["region"].eq(region)
+    return frame.loc[mask].copy().reset_index(drop=True)
+
+
 def filter_period(
     frame: pd.DataFrame,
     date_column: str,
@@ -106,13 +132,10 @@ def filter_period(
     if date_column not in frame.columns:
         raise ValueError(f"missing date column: {date_column}")
 
-    dates = pd.to_datetime(frame[date_column], errors="coerce", utc=True).dt.tz_localize(None).dt.normalize()
+    scoped = filter_scope(frame, department=department, region=region)
+    dates = pd.to_datetime(scoped[date_column], errors="coerce", utc=True).dt.tz_localize(None).dt.normalize()
     mask = dates.between(window.start, window.end, inclusive="both")
-    if department is not None:
-        mask &= frame["department"].eq(department)
-    if region is not None:
-        mask &= frame["region"].eq(region)
-    return frame.loc[mask].copy().reset_index(drop=True)
+    return scoped.loc[mask].copy().reset_index(drop=True)
 
 
 def calculate_sales_kpis(
@@ -189,9 +212,8 @@ def calculate_department_performance(
     previous_sales: pd.DataFrame,
     revenue_targets: Mapping[str, float] = DEFAULT_WEEKLY_REVENUE_TARGETS,
 ) -> pd.DataFrame:
-    """Compare departments on revenue vs target and week-over-week revenue change."""
+    """Compare departments on revenue vs target and period-over-period revenue change."""
     current = current_sales.groupby("department", as_index=False)["revenue"].sum()
-    current = current.rename(columns={"revenue": "revenue"})
     previous = previous_sales.groupby("department", as_index=False)["revenue"].sum()
     previous = previous.rename(columns={"revenue": "previous_revenue"})
 
@@ -220,8 +242,58 @@ def calculate_department_performance(
     return result.sort_values(["rank", "department"]).reset_index(drop=True)
 
 
+def scaled_revenue_targets(
+    days: int,
+    departments: list[str] | set[str] | tuple[str, ...] | None = None,
+) -> dict[str, float]:
+    """Scale weekly demo revenue targets to the selected reporting-window length."""
+    if days <= 0:
+        raise ValueError("days must be positive")
+    selected = set(DEFAULT_WEEKLY_REVENUE_TARGETS) if departments is None else set(departments)
+    missing = selected - set(DEFAULT_WEEKLY_REVENUE_TARGETS)
+    if missing:
+        raise ValueError(f"missing revenue target for department(s): {', '.join(sorted(missing))}")
+    factor = days / 7
+    return {department: DEFAULT_WEEKLY_REVENUE_TARGETS[department] * factor for department in sorted(selected)}
+
+
+def calculate_snapshot(
+    frames: Mapping[str, pd.DataFrame],
+    window: DateWindow,
+    *,
+    department: str | None = None,
+    region: str | None = None,
+) -> KPISnapshot:
+    """Calculate one KPI snapshot from already-loaded trusted reporting frames."""
+    previous_window = window.previous()
+
+    current_sales = filter_period(frames["sales"], "created_date", window, department=department, region=region)
+    previous_sales = filter_period(
+        frames["sales"], "created_date", previous_window, department=department, region=region
+    )
+    current_support = filter_period(frames["support"], "opened_at", window, department=department, region=region)
+    current_operations = filter_period(
+        frames["operations"], "scheduled_date", window, department=department, region=region
+    )
+    current_staffing = filter_period(frames["staffing"], "date", window, department=department, region=region)
+
+    sales_scope = filter_scope(frames["sales"], department=department, region=region)
+    scope_departments = sorted(sales_scope["department"].dropna().astype(str).unique().tolist())
+    targets = scaled_revenue_targets(window.days, scope_departments)
+    departments = calculate_department_performance(current_sales, previous_sales, revenue_targets=targets)
+
+    return KPISnapshot(
+        current_window=window,
+        previous_window=previous_window,
+        sales=calculate_sales_kpis(current_sales, previous_sales),
+        support=calculate_support_kpis(current_support),
+        operations=calculate_operations_kpis(current_operations, current_staffing),
+        departments=departments.to_dict(orient="records"),
+    )
+
+
 class KPIEngine:
-    """Read trusted reporting tables and calculate a deterministic KPI snapshot."""
+    """Read trusted reporting tables and calculate deterministic KPI snapshots."""
 
     def __init__(self, reporting_db: Path | str) -> None:
         self.reporting_db = Path(reporting_db)
@@ -237,25 +309,21 @@ class KPIEngine:
                 "staffing": pd.read_sql_query("SELECT * FROM staffing_clean", conn),
             }
 
+    def snapshot(
+        self,
+        window: DateWindow,
+        *,
+        department: str | None = None,
+        region: str | None = None,
+    ) -> KPISnapshot:
+        return calculate_snapshot(
+            self.load_frames(),
+            window,
+            department=department,
+            region=region,
+        )
+
     def latest_week(self) -> KPISnapshot:
         frames = self.load_frames()
         latest_date = pd.to_datetime(frames["sales"]["created_date"], errors="raise").max()
-        current_window = DateWindow.ending_on(latest_date, days=7)
-        previous_window = current_window.previous()
-
-        current_sales = filter_period(frames["sales"], "created_date", current_window)
-        previous_sales = filter_period(frames["sales"], "created_date", previous_window)
-        current_support = filter_period(frames["support"], "opened_at", current_window)
-        current_operations = filter_period(frames["operations"], "scheduled_date", current_window)
-        current_staffing = filter_period(frames["staffing"], "date", current_window)
-
-        departments = calculate_department_performance(current_sales, previous_sales)
-
-        return KPISnapshot(
-            current_window=current_window,
-            previous_window=previous_window,
-            sales=calculate_sales_kpis(current_sales, previous_sales),
-            support=calculate_support_kpis(current_support),
-            operations=calculate_operations_kpis(current_operations, current_staffing),
-            departments=departments.to_dict(orient="records"),
-        )
+        return calculate_snapshot(frames, DateWindow.ending_on(latest_date, days=7))

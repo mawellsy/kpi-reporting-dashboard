@@ -4,13 +4,14 @@ A portfolio project that automates a multi-source business reporting workflow: i
 
 ## Current milestone
 
-**Milestone 3: KPI engine**
+**Milestone 4: interactive dashboard**
 
-The project now has three working layers:
+The project now has four working layers:
 
 1. **Synthetic source generation** creates 112 days of reproducible business data.
 2. **ETL (Extract, Transform, Load)** validates four source types, quarantines invalid rows, and loads trusted reporting tables into SQLite.
 3. **KPI engine** calculates reusable sales, support, operations, and department metrics from clean data.
+4. **Streamlit dashboard** exposes the same tested KPI logic through management pages, charts, and shared filters.
 
 ## Raw sources
 
@@ -93,6 +94,34 @@ Run tests:
 
 ```bash
 pytest
+```
+
+
+## Dashboard
+
+The dashboard has five pages:
+
+1. Executive Overview
+2. Sales
+3. Operations
+4. Customer Support
+5. Department Comparison
+
+Shared sidebar filters control:
+
+- date range
+- department
+- region
+
+The selected date range is compared with the immediately preceding equal-length period. Weekly demo revenue targets are scaled to the selected number of days so target comparisons remain meaningful outside a seven-day window. Quiet days remain visible in chart series with zero activity instead of disappearing from the calendar.
+
+Run the dashboard after generating data and running ETL:
+
+```bash
+pip install -r requirements.txt
+python scripts/generate_demo_data.py
+python scripts/run_etl.py
+streamlit run dashboard/app.py
 ```
 
 ## Design principle
