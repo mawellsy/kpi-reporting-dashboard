@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import asdict, dataclass
+from datetime import timedelta
 from pathlib import Path
 from typing import Mapping
 
@@ -26,11 +27,11 @@ class DateWindow:
         if days <= 0:
             raise ValueError("days must be positive")
         end_ts = pd.Timestamp(end).normalize()
-        return cls(start=end_ts - pd.Timedelta(days=days - 1), end=end_ts)
+        return cls(start=end_ts - timedelta(days=int(days) - 1), end=end_ts)
 
     def previous(self) -> "DateWindow":
         days = (self.end - self.start).days + 1
-        previous_end = self.start - pd.Timedelta(days=1)
+        previous_end = self.start - timedelta(days=1)
         return DateWindow.ending_on(previous_end, days=days)
 
 
