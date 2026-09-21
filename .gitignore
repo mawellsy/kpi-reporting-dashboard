@@ -9,3 +9,6 @@ __pycache__/
 
 # Generated reporting database
 data/processed/*.db
+
+# Local secrets
+.env

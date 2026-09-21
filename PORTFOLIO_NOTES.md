@@ -137,3 +137,34 @@ Automate a multi-source management reporting workflow from raw operational data 
 - I build anomaly systems with explicit, auditable business rules before reaching for machine learning.
 - I compare current performance with structurally comparable historical periods rather than arbitrary baselines.
 - I keep alert explanations tied to calculated values and references so managers can see why a flag was raised.
+
+
+## Milestone 6 — Problems solved
+- Added an AI management-summary layer without letting the model calculate authoritative KPIs.
+- Restricted model context to validated KPIs, anomaly results, and selected business scope rather than raw operational records.
+- Required strict structured output for executive summary, positive changes, risks, and recommended attention.
+- Added local output validation plus numeric-grounding checks to reject unsupported figures.
+- Added retry/fail-safe behavior for malformed or ungrounded model responses.
+- Added a provider abstraction so AI behavior can be mocked in tests without network calls or API cost.
+- Integrated on-demand summary generation into the Executive Overview rather than triggering an API call on every Streamlit rerun.
+
+## Milestone 6 — Skills demonstrated
+- OpenAI Responses API integration
+- structured JSON-schema outputs
+- LLM grounding and guardrails
+- provider/adaptor architecture
+- environment-based secret handling
+- deterministic mocked AI tests
+- Streamlit session-state integration
+
+## Milestone 6 — Demo moments
+- show `scripts/generate_management_summary.py` receiving only the validated reporting layer
+- show the strict four-field output schema
+- run tests that reject an invented numeric claim
+- generate an Executive Overview summary and compare its statements with the KPI/anomaly cards
+- explain why the AI can interpret metrics but cannot change the authoritative calculations
+
+## Milestone 6 — Upwork talking points
+- I integrate LLMs after deterministic business logic instead of asking the model to invent or calculate operational facts.
+- I use structured outputs, local validation, and grounding checks so AI-generated reports fail safely.
+- I isolate external AI providers behind testable interfaces, which keeps the application maintainable and avoids network-dependent unit tests.

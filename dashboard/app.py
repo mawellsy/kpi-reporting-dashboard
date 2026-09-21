@@ -2,17 +2,25 @@ from __future__ import annotations
 
 from datetime import timedelta
 from pathlib import Path
+import os
 import sys
 
 import pandas as pd
+from dotenv import load_dotenv
 import plotly.express as px
 import streamlit as st
 
 ROOT = Path(__file__).resolve().parents[1]
+load_dotenv(ROOT / ".env")
 sys.path.insert(0, str(ROOT / "src"))
 
 from kpi_dashboard.dashboard import build_dashboard_data, get_filter_options
 from kpi_dashboard.kpis import DateWindow, KPIEngine
+from kpi_dashboard.management_summary import (
+    ManagementSummaryError,
+    OpenAIResponsesProvider,
+    generate_management_summary,
+)
 
 
 REPORTING_DB = ROOT / "data" / "processed" / "reporting.db"
@@ -78,10 +86,65 @@ def render_anomalies(data) -> None:
     st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
 
 
-def render_executive(data) -> None:
+def render_management_summary(data, *, department: str | None, region: str | None) -> None:
+    st.subheader("AI management summary")
+    if not os.getenv("OPENAI_API_KEY"):
+        st.info("Set OPENAI_API_KEY to generate a grounded management summary from the validated KPIs and anomalies.")
+        return
+
+    scope_key = "|".join(
+        [
+            data.snapshot.current_window.start.date().isoformat(),
+            data.snapshot.current_window.end.date().isoformat(),
+            department or "All",
+            region or "All",
+        ]
+    )
+
+    if st.button("Generate AI management summary", type="primary"):
+        try:
+            with st.spinner("Generating summary from validated metrics..."):
+                summary = generate_management_summary(
+                    data.snapshot,
+                    data.anomalies,
+                    OpenAIResponsesProvider(),
+                    department=department,
+                    region=region,
+                )
+            st.session_state["management_summary_scope"] = scope_key
+            st.session_state["management_summary_result"] = summary.to_dict()
+        except ManagementSummaryError as exc:
+            st.error(f"Management summary could not be generated: {exc}")
+
+    if st.session_state.get("management_summary_scope") != scope_key:
+        return
+
+    payload = st.session_state.get("management_summary_result")
+    if not payload:
+        return
+
+    st.write(payload["executive_summary"])
+    columns = st.columns(3)
+    sections = [
+        ("Positive changes", payload["positive_changes"]),
+        ("Risks", payload["risks"]),
+        ("Recommended attention", payload["recommended_attention"]),
+    ]
+    for column, (title, items) in zip(columns, sections):
+        with column:
+            st.markdown(f"**{title}**")
+            if items:
+                for item in items:
+                    st.markdown(f"- {item}")
+            else:
+                st.caption("None supported by the supplied metrics.")
+
+
+def render_executive(data, *, department: str | None, region: str | None) -> None:
     st.header("Executive Overview")
     metric_row(data)
     render_anomalies(data)
+    render_management_summary(data, department=department, region=region)
 
     left, right = st.columns(2)
     with left:
@@ -288,7 +351,7 @@ def main() -> None:
     )
 
     if page == "Executive Overview":
-        render_executive(data)
+        render_executive(data, department=department, region=region)
     elif page == "Sales":
         render_sales(data)
     elif page == "Operations":

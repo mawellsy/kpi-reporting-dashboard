@@ -4,15 +4,16 @@ A portfolio project that automates a multi-source business reporting workflow: i
 
 ## Current milestone
 
-**Milestone 5: deterministic anomaly detection**
+**Milestone 6: grounded AI management summary**
 
-The project now has five working layers:
+The project now has six working layers:
 
 1. **Synthetic source generation** creates 112 days of reproducible business data.
 2. **ETL (Extract, Transform, Load)** validates four source types, quarantines invalid rows, and loads trusted reporting tables into SQLite.
 3. **KPI engine** calculates reusable sales, support, operations, and department metrics from clean data.
 4. **Streamlit dashboard** exposes the same tested KPI logic through management pages, charts, and shared filters.
 5. **Anomaly detection** applies explicit threshold, recent-average, and missed-target rules to validated KPI results.
+6. **AI management summary** sends only validated KPI/anomaly JSON to an LLM and locally validates the structured response before displaying or exporting it.
 
 ## Raw sources
 
@@ -143,6 +144,46 @@ python scripts/detect_anomalies.py
 
 The Executive Overview also shows triggered anomalies using the same date, department, and region filters as the rest of the dashboard.
 
+## AI management summary
+
+The LLM receives only an application-generated JSON package containing:
+
+- selected department/region scope
+- validated KPI snapshot
+- validated anomaly results
+
+It does **not** receive raw sales, ticket, operations, or staffing records. The response must match a strict JSON schema with exactly these fields:
+
+- `executive_summary`
+- `positive_changes`
+- `risks`
+- `recommended_attention`
+
+The application also performs a local grounding check: numeric values in the generated prose must already exist in the supplied JSON. Invalid or unsupported output is retried and ultimately rejected rather than silently shown to management.
+
+Create a local `.env` file from the committed template:
+
+```bash
+cp .env.example .env
+```
+
+Then put your real local values in `.env`:
+
+```dotenv
+OPENAI_API_KEY=your-real-key
+OPENAI_MODEL=gpt-5-mini
+```
+
+The CLI and Streamlit dashboard load this file automatically with `python-dotenv`. `.env` is ignored by Git; `.env.example` contains only safe variable names/defaults and is committed as documentation. In deployed environments, inject these variables through the hosting platform instead of shipping a `.env` file.
+
+Generate the latest seven-day summary from the CLI:
+
+```bash
+python scripts/generate_management_summary.py
+```
+
+The Executive Overview also exposes a **Generate AI management summary** button when `OPENAI_API_KEY` is present. Streamlit stores the generated result only for the matching filter scope so a summary from one department/date selection is not reused for another.
+
 ## Design principle
 
-Business metrics are calculated deterministically in Python/SQL. The later LLM layer will receive only validated metric results and interpret them; it will not calculate or invent management numbers.
+Business metrics and anomalies are calculated deterministically in Python/SQL. The LLM interprets those validated facts; it is not the authoritative calculator and does not receive permission to invent management numbers.

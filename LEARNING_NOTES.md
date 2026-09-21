@@ -215,3 +215,45 @@ Machine learning is useful when behavior is complex enough that explicit rules b
 - rolling averages and equal-period comparisons
 - rule-based detection vs statistical/ML anomaly detection
 - why anomaly explanations matter for operational adoption
+
+
+## Milestone 6 — Grounded AI management summary
+
+### The LLM is downstream of the truth layer
+The model is not a calculator or source-of-record. Python produces validated KPIs and anomaly findings first. Only that small structured fact package crosses the AI boundary.
+
+```text
+trusted SQL data
+      ↓
+deterministic KPIs
+      ↓
+deterministic anomalies
+      ↓
+validated JSON context
+      ↓
+LLM interpretation
+      ↓
+local schema + numeric grounding validation
+      ↓
+management summary
+```
+
+This architecture reduces hallucination risk and makes the AI component replaceable. If the model/provider changes, the KPI definitions remain untouched.
+
+### Structured output
+The provider is asked for strict JSON matching four fields: `executive_summary`, `positive_changes`, `risks`, and `recommended_attention`. The application validates the result again locally instead of assuming the remote schema guarantee is sufficient.
+
+### Numeric grounding
+A model can produce valid JSON and still invent a business number. The local grounding guard extracts numeric claims from the prose and rejects any value that was absent from the supplied KPI/anomaly context. This is deliberately conservative for a management-reporting workflow.
+
+### Provider abstraction
+Business logic depends on a small `SummaryProvider` protocol rather than directly on the OpenAI client. Tests use a fake provider, so the suite is deterministic, fast, and does not spend API credits. The OpenAI adapter is only infrastructure.
+
+### What to study
+- prompt/context boundaries
+- Structured Outputs / JSON Schema
+- dependency inversion and provider adapters
+- deterministic tests with fake external services
+- hallucination vs schema validation
+- why numeric grounding is stricter than valid JSON
+- API-key management through environment variables
