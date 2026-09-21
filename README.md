@@ -1,24 +1,49 @@
 # Automated Business KPI Reporting & Management Dashboard
 
-A portfolio project that automates a multi-source business reporting workflow: ingestion, cleaning, KPI calculation, anomaly detection, dashboarding, AI-assisted management summaries, and scheduled reporting.
+A portfolio project demonstrating an end-to-end management reporting workflow for a fictional multi-department company.
 
-## Current milestone
+## Project status
 
-**Milestone 6: grounded AI management summary**
+**Complete portfolio implementation.**
 
-The project now has six working layers:
+The project demonstrates an end-to-end automated management reporting workflow:
 
-1. **Synthetic source generation** creates 112 days of reproducible business data.
-2. **ETL (Extract, Transform, Load)** validates four source types, quarantines invalid rows, and loads trusted reporting tables into SQLite.
-3. **KPI engine** calculates reusable sales, support, operations, and department metrics from clean data.
-4. **Streamlit dashboard** exposes the same tested KPI logic through management pages, charts, and shared filters.
-5. **Anomaly detection** applies explicit threshold, recent-average, and missed-target rules to validated KPI results.
-6. **AI management summary** sends only validated KPI/anomaly JSON to an LLM and locally validates the structured response before displaying or exporting it.
+**Multi-source data → validation → ETL → SQL → KPI calculation → anomaly detection → interactive dashboard → grounded AI management summary.**
+
+## What this project solves
+
+Operational information for the fictional company is spread across sales, customer support, operations, and staffing sources. Without automation, management reporting would require manually consolidating those sources, checking data quality, calculating KPIs, reviewing performance against recent history and targets, and writing a management summary.
+
+This system automates that workflow while keeping the underlying KPI and anomaly calculations deterministic, testable, and auditable. The LLM is used only after validated metrics and anomaly results have been produced by the application.
+
+## Portfolio highlights
+
+- **Four source feeds:** sales CSV, support JSON/mock API data, operations SQLite data, and staffing CSV.
+- **Validation and quarantine:** invalid records are retained with rejection reasons instead of contaminating reporting tables.
+- **Deterministic KPI engine:** reusable Python/SQL calculations for sales, support, operations, and department performance.
+- **Five-page Streamlit dashboard:** Executive Overview, Sales, Operations, Customer Support, and Department Comparison.
+- **Shared filters:** date range, department, and region drive the dashboard and comparison scope.
+- **Deterministic anomaly detection:** explicit threshold, recent-average deviation, and missed-target rules.
+- **Grounded AI management summary:** the LLM receives only validated KPI and anomaly data in a structured package.
+- **Local output validation:** unsupported numeric claims are rejected when they do not exist in the supplied facts.
+
+## Business value
+
+As a portfolio implementation, this system demonstrates how an automated reporting workflow can:
+
+- reduce repetitive spreadsheet and cross-system consolidation work
+- standardize KPI calculations across reporting periods
+- prevent invalid records from entering management metrics
+- provide faster visibility into operational performance
+- surface important anomalies automatically using explicit rules
+- produce concise management summaries grounded in validated metrics
+
+No measured ROI is claimed; the project uses synthetic data to demonstrate the workflow and engineering approach.
 
 ## Raw sources
 
 - `data/raw/sales.csv` — sales opportunities and revenue
-- `data/raw/support_tickets.json` — support tickets, later exposed through a mock REST API
+- `data/raw/support_tickets.json` — customer support tickets
 - `data/raw/operations.db` — operational jobs
 - `data/raw/staffing.csv` — daily staffing and absence data
 
@@ -98,7 +123,6 @@ Run tests:
 pytest
 ```
 
-
 ## Dashboard
 
 The dashboard has five pages:
@@ -128,7 +152,7 @@ streamlit run dashboard/app.py
 
 ## Anomaly detection
 
-The anomaly layer is deterministic and intentionally simple. It currently checks:
+The anomaly layer is deterministic and intentionally simple. It checks:
 
 - **Threshold change:** company revenue growth at or below a configured decline threshold.
 - **Recent average deviation:** delayed jobs materially above the mean of recent equal-length reporting periods.
@@ -186,4 +210,6 @@ The Executive Overview also exposes a **Generate AI management summary** button 
 
 ## Design principle
 
-Business metrics and anomalies are calculated deterministically in Python/SQL. The LLM interprets those validated facts; it is not the authoritative calculator and does not receive permission to invent management numbers.
+**Python/SQL calculate the business metrics and anomaly results. The LLM interprets validated facts.**
+
+The LLM is not the authoritative calculator. It receives a constrained package of validated KPI and anomaly data, must return a strict structured response, and is subject to local grounding checks before its output is shown. This keeps the numerical reporting logic deterministic and auditable while using the model for concise management interpretation.
