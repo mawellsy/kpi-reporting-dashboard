@@ -27,6 +27,10 @@ This system automates that workflow while keeping the underlying KPI and anomaly
 - **Grounded AI management summary:** the LLM receives only validated KPI and anomaly data in a structured package.
 - **Local output validation:** unsupported numeric claims are rejected when they do not exist in the supplied facts.
 
+## Dashboard preview
+
+![Executive dashboard](docs/screenshots/executive-overview.png)
+
 ## Business value
 
 As a portfolio implementation, this system demonstrates how an automated reporting workflow can:
