@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from pathlib import Path
 import sys
 
@@ -74,7 +75,7 @@ def render_anomalies(data) -> None:
                 "Explanation": item.message,
             }
         )
-    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
 
 
 def render_executive(data) -> None:
@@ -89,7 +90,7 @@ def render_executive(data) -> None:
             st.info("No sales records match the selected filters.")
         else:
             fig = px.line(data.sales_trend, x="date", y="revenue", markers=True, labels={"revenue": "Revenue"})
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
     with right:
         st.subheader("Department vs target")
@@ -102,7 +103,7 @@ def render_executive(data) -> None:
                 y="performance_vs_target_pct",
                 labels={"performance_vs_target_pct": "% vs target", "department": "Department"},
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
     st.subheader("Operational pulse")
     c1, c2, c3, c4 = st.columns(4)
@@ -127,7 +128,7 @@ def render_sales(data) -> None:
 
     st.plotly_chart(
         px.line(data.sales_trend, x="date", y="revenue", markers=True, title="Daily revenue"),
-        use_container_width=True,
+        width="stretch",
     )
     volume = data.sales_trend.melt(
         id_vars="date",
@@ -137,7 +138,7 @@ def render_sales(data) -> None:
     )
     st.plotly_chart(
         px.bar(volume, x="date", y="count", color="series", barmode="group", title="Opportunity volume"),
-        use_container_width=True,
+        width="stretch",
     )
 
 
@@ -162,7 +163,7 @@ def render_operations(data) -> None:
     )
     st.plotly_chart(
         px.bar(volume, x="date", y="jobs", color="series", barmode="group", title="Daily operations"),
-        use_container_width=True,
+        width="stretch",
     )
     st.plotly_chart(
         px.line(
@@ -173,7 +174,7 @@ def render_operations(data) -> None:
             title="Daily completion rate",
             labels={"completion_rate_pct": "Completion rate (%)"},
         ),
-        use_container_width=True,
+        width="stretch",
     )
 
 
@@ -198,7 +199,7 @@ def render_support(data) -> None:
     )
     st.plotly_chart(
         px.bar(volume, x="date", y="tickets", color="series", barmode="group", title="Daily support volume"),
-        use_container_width=True,
+        width="stretch",
     )
     st.plotly_chart(
         px.line(
@@ -209,7 +210,7 @@ def render_support(data) -> None:
             title="Daily customer satisfaction",
             labels={"customer_satisfaction": "CSAT"},
         ),
-        use_container_width=True,
+        width="stretch",
     )
 
 
@@ -228,7 +229,7 @@ def render_departments(data) -> None:
             labels={"performance_vs_target_pct": "% vs target", "department": "Department"},
             title="Performance versus scaled revenue target",
         ),
-        use_container_width=True,
+        width="stretch",
     )
     st.dataframe(
         table.rename(
@@ -241,7 +242,7 @@ def render_departments(data) -> None:
                 "rank": "Rank",
             }
         ),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
     st.caption("Weekly demo revenue targets are scaled to the selected date-range length.")
@@ -258,7 +259,7 @@ def main() -> None:
 
     frames = load_frames(str(REPORTING_DB), REPORTING_DB.stat().st_mtime_ns)
     options = get_filter_options(frames)
-    default_start = max(options.minimum_date, options.maximum_date - pd.Timedelta(days=6))
+    default_start = max(options.minimum_date, options.maximum_date - timedelta(days=6))
 
     st.sidebar.header("Dashboard controls")
     page = st.sidebar.radio("Page", PAGES)

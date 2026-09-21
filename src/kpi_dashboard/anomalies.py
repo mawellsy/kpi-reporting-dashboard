@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from datetime import timedelta
 from typing import Mapping, Sequence
 
 import pandas as pd
@@ -159,7 +160,7 @@ def _recent_history(
     minimum_date = sales_dates.min()
 
     history: list[KPISnapshot] = []
-    cursor_end = window.start - pd.Timedelta(days=1)
+    cursor_end = window.start - timedelta(days=1)
     for _ in range(count):
         candidate = DateWindow.ending_on(cursor_end, days=window.days)
         if candidate.start < minimum_date:
@@ -172,7 +173,7 @@ def _recent_history(
                 region=region,
             )
         )
-        cursor_end = candidate.start - pd.Timedelta(days=1)
+        cursor_end = candidate.start - timedelta(days=1)
     return history
 
 
