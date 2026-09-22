@@ -15,6 +15,11 @@ load_dotenv(ROOT / ".env")
 sys.path.insert(0, str(ROOT / "src"))
 
 from kpi_dashboard.dashboard import build_dashboard_data, get_filter_options
+from kpi_dashboard.database import (
+    ReportingDatabaseError,
+    resolve_reporting_database_url,
+    sqlite_database_path,
+)
 from kpi_dashboard.kpis import DateWindow, KPIEngine
 from kpi_dashboard.management_summary import (
     ManagementSummaryError,
@@ -23,7 +28,7 @@ from kpi_dashboard.management_summary import (
 )
 
 
-REPORTING_DB = ROOT / "data" / "processed" / "reporting.db"
+REPORTING_DATABASE_URL = resolve_reporting_database_url(ROOT)
 PAGES = [
     "Executive Overview",
     "Sales",
@@ -45,10 +50,10 @@ def delta(value: float | None, label: str = "vs previous period") -> str | None:
     return None if value is None else f"{value:+.2f}% {label}"
 
 
-@st.cache_data(show_spinner=False)
-def load_frames(db_path: str, modified_ns: int) -> dict[str, pd.DataFrame]:
-    del modified_ns  # cache key only; reading remains delegated to the tested KPI engine.
-    return KPIEngine(db_path).load_frames()
+@st.cache_data(show_spinner=False, ttl=30)
+def load_frames(database_url: str, cache_token: int) -> dict[str, pd.DataFrame]:
+    del cache_token  # SQLite mtime cache key; remote databases refresh via the TTL.
+    return KPIEngine(database_url).load_frames()
 
 
 def metric_row(data) -> None:
@@ -316,11 +321,19 @@ def main() -> None:
     st.title("Automated Business KPI Reporting")
     st.caption("Validated reporting data → deterministic KPIs → management dashboard")
 
-    if not REPORTING_DB.exists():
-        st.error("Reporting database not found. Run `python scripts/run_etl.py` first.")
-        st.stop()
+    sqlite_path = sqlite_database_path(REPORTING_DATABASE_URL)
+    cache_token = 0
+    if sqlite_path is not None:
+        if not sqlite_path.exists():
+            st.error("Reporting database not found. Run `python scripts/run_etl.py` first.")
+            st.stop()
+        cache_token = sqlite_path.stat().st_mtime_ns
 
-    frames = load_frames(str(REPORTING_DB), REPORTING_DB.stat().st_mtime_ns)
+    try:
+        frames = load_frames(REPORTING_DATABASE_URL, cache_token)
+    except (FileNotFoundError, ReportingDatabaseError) as exc:
+        st.error(f"Reporting database unavailable: {exc}")
+        st.stop()
     options = get_filter_options(frames)
     default_start = max(options.minimum_date, options.maximum_date - timedelta(days=6))
 

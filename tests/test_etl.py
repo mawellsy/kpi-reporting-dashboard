@@ -98,3 +98,26 @@ def test_missing_required_source_column_fails_fast(tmp_path):
         assert "revenue" in str(exc)
     else:
         raise AssertionError("ETL should fail when a required source column is missing")
+
+
+def test_etl_accepts_database_url_and_creates_reporting_indexes(tmp_path):
+    from sqlalchemy import create_engine, inspect
+
+    raw_dir = tmp_path / "raw"
+    reporting_db = tmp_path / "reporting.db"
+    database_url = f"sqlite+pysqlite:///{reporting_db.as_posix()}"
+    SyntheticDataGenerator(raw_dir, GenerationConfig(days=20, seed=10)).generate_all()
+
+    ETLPipeline(ETLConfig(raw_dir=raw_dir, database_url=database_url)).run()
+
+    engine = create_engine(database_url)
+    try:
+        inspector = inspect(engine)
+        sales_indexes = {item["name"] for item in inspector.get_indexes("sales_clean")}
+        operations_indexes = {item["name"] for item in inspector.get_indexes("operations_clean")}
+    finally:
+        engine.dispose()
+
+    assert "idx_sales_opportunity_id" in sales_indexes
+    assert "idx_sales_date_department" in sales_indexes
+    assert "idx_operations_date_department" in operations_indexes

@@ -65,6 +65,28 @@ Running ETL creates `data/processed/reporting.db` with:
 
 Invalid records are retained with explicit rejection reasons and their original values. They never enter KPI calculations.
 
+## PostgreSQL reporting database
+
+PostgreSQL is the intended reporting database for deployed or multi-user use. Database access is routed through SQLAlchemy so the ETL pipeline, KPI engine, dashboard, anomaly scan, and management-summary CLI use the same configured backend. SQLite remains available as a lightweight fallback for tests and a zero-setup local demo.
+
+Configure PostgreSQL in `.env` with a SQLAlchemy connection URL:
+
+```dotenv
+REPORTING_DATABASE_URL=postgresql+psycopg://kpi_user:local-dev-password@localhost:5432/kpi_reporting
+```
+
+Then run the normal workflow:
+
+```bash
+python scripts/run_etl.py
+python scripts/calculate_kpis.py
+streamlit run dashboard/app.py
+```
+
+The reporting schema keeps explicit indexes for business identifiers and common reporting filters, including sales date/department, operations date/department, support department, and rejection source. PostgreSQL is a better production-style fit than a single local SQLite file because it supports concurrent clients, networked services, connection management, stronger operational tooling, and a cleaner path to containerized/deployed environments.
+
+If `REPORTING_DATABASE_URL` is blank, the project falls back to `data/processed/reporting.db` so the existing local demo and automated tests remain self-contained.
+
 ## KPI definitions
 
 The KPI engine calculates metrics deterministically from trusted records.

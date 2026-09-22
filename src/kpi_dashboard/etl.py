@@ -8,8 +8,11 @@ from pathlib import Path
 from typing import Callable
 
 import pandas as pd
+from sqlalchemy import text
+from sqlalchemy.engine import Connection
 
 from .data_generation import DEPARTMENT_TO_REGION
+from .database import create_reporting_engine, normalize_database_url
 
 
 EXPECTED_REGIONS = set(DEPARTMENT_TO_REGION.values())
@@ -19,7 +22,17 @@ EXPECTED_DEPARTMENTS = set(DEPARTMENT_TO_REGION)
 @dataclass(frozen=True)
 class ETLConfig:
     raw_dir: Path
-    output_db: Path
+    output_db: Path | None = None
+    database_url: str | None = None
+
+    def resolved_database_url(self) -> str:
+        if self.output_db is not None and self.database_url is not None:
+            raise ValueError("configure either output_db or database_url, not both")
+        if self.database_url is not None:
+            return normalize_database_url(self.database_url)
+        if self.output_db is not None:
+            return normalize_database_url(self.output_db)
+        raise ValueError("ETLConfig requires output_db or database_url")
 
 
 @dataclass(frozen=True)
@@ -43,16 +56,18 @@ class ETLResult:
 
 
 class ETLPipeline:
-    """Extract raw demo sources, validate them, and load clean rows into SQLite.
+    """Extract raw demo sources, validate them, and load trusted reporting tables.
 
-    Validation is deliberately deterministic. Rows that violate data-quality rules are
-    preserved in ``etl_rejections`` rather than silently dropped or repaired.
+    PostgreSQL is supported for production-style use while SQLite remains available for
+    tests and the lightweight local demo. Validation stays deterministic regardless of
+    the storage backend. Rows that violate data-quality rules are preserved in
+    ``etl_rejections`` rather than silently dropped or repaired.
     """
 
     def __init__(self, config: ETLConfig) -> None:
         self.config = config
         self.raw_dir = Path(config.raw_dir)
-        self.output_db = Path(config.output_db)
+        self.database_url = config.resolved_database_url()
 
     def run(self) -> ETLResult:
         run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
@@ -254,10 +269,6 @@ class ETLPipeline:
         rejected: dict[str, pd.DataFrame],
         run_id: str,
     ) -> None:
-        self.output_db.parent.mkdir(parents=True, exist_ok=True)
-        if self.output_db.exists():
-            self.output_db.unlink()
-
         table_map = {
             "sales": "sales_clean",
             "support": "support_clean",
@@ -286,36 +297,58 @@ class ETLPipeline:
             )
         run_log = pd.DataFrame(run_rows)
 
-        with sqlite3.connect(self.output_db) as conn:
-            for source_name, table_name in table_map.items():
-                clean[source_name].to_sql(table_name, conn, index=False, if_exists="replace")
-            all_rejections.to_sql("etl_rejections", conn, index=False, if_exists="replace")
-            run_log.to_sql("etl_run_source_stats", conn, index=False, if_exists="replace")
-            conn.execute(
-                """
-                CREATE TABLE etl_runs (
-                    run_id TEXT PRIMARY KEY,
-                    completed_at_utc TEXT NOT NULL,
-                    total_extracted INTEGER NOT NULL,
-                    total_loaded INTEGER NOT NULL,
-                    total_rejected INTEGER NOT NULL
+        engine = create_reporting_engine(self.database_url)
+        try:
+            with engine.begin() as conn:
+                for table_name in [
+                    *table_map.values(),
+                    "etl_rejections",
+                    "etl_run_source_stats",
+                    "etl_runs",
+                ]:
+                    conn.execute(text(f"DROP TABLE IF EXISTS {table_name}"))
+
+                for source_name, table_name in table_map.items():
+                    clean[source_name].to_sql(table_name, conn, index=False, if_exists="append")
+                all_rejections.to_sql("etl_rejections", conn, index=False, if_exists="append")
+                run_log.to_sql("etl_run_source_stats", conn, index=False, if_exists="append")
+                conn.execute(
+                    text(
+                        """
+                        CREATE TABLE etl_runs (
+                            run_id TEXT PRIMARY KEY,
+                            completed_at_utc TEXT NOT NULL,
+                            total_extracted INTEGER NOT NULL,
+                            total_loaded INTEGER NOT NULL,
+                            total_rejected INTEGER NOT NULL
+                        )
+                        """
+                    )
                 )
-                """
-            )
-            conn.execute(
-                "INSERT INTO etl_runs VALUES (?, ?, ?, ?, ?)",
-                (
-                    run_id,
-                    datetime.now(timezone.utc).isoformat(),
-                    int(run_log["extracted_rows"].sum()),
-                    int(run_log["loaded_rows"].sum()),
-                    int(run_log["rejected_rows"].sum()),
-                ),
-            )
-            self._create_indexes(conn)
+                conn.execute(
+                    text(
+                        """
+                        INSERT INTO etl_runs (
+                            run_id, completed_at_utc, total_extracted, total_loaded, total_rejected
+                        ) VALUES (
+                            :run_id, :completed_at_utc, :total_extracted, :total_loaded, :total_rejected
+                        )
+                        """
+                    ),
+                    {
+                        "run_id": run_id,
+                        "completed_at_utc": datetime.now(timezone.utc).isoformat(),
+                        "total_extracted": int(run_log["extracted_rows"].sum()),
+                        "total_loaded": int(run_log["loaded_rows"].sum()),
+                        "total_rejected": int(run_log["rejected_rows"].sum()),
+                    },
+                )
+                self._create_indexes(conn)
+        finally:
+            engine.dispose()
 
     @staticmethod
-    def _create_indexes(conn: sqlite3.Connection) -> None:
+    def _create_indexes(conn: Connection) -> None:
         statements = [
             "CREATE UNIQUE INDEX idx_sales_opportunity_id ON sales_clean(opportunity_id)",
             "CREATE INDEX idx_sales_date_department ON sales_clean(created_date, department)",
@@ -327,7 +360,7 @@ class ETLPipeline:
             "CREATE INDEX idx_rejections_source ON etl_rejections(source)",
         ]
         for statement in statements:
-            conn.execute(statement)
+            conn.execute(text(statement))
 
     @staticmethod
     def _require_columns(df: pd.DataFrame, columns: list[str], source_name: str) -> None:

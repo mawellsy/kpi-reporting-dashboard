@@ -13,18 +13,16 @@ load_dotenv(ROOT / ".env")
 sys.path.insert(0, str(ROOT / "src"))
 
 from kpi_dashboard.anomalies import detect_anomalies
+from kpi_dashboard.database import resolve_reporting_database_url
 from kpi_dashboard.kpis import DateWindow, KPIEngine
 from kpi_dashboard.management_summary import OpenAIResponsesProvider, generate_management_summary
-
-
-REPORTING_DB = ROOT / "data" / "processed" / "reporting.db"
 
 
 def main() -> None:
     if not os.getenv("OPENAI_API_KEY"):
         raise SystemExit("OPENAI_API_KEY is required to generate the AI management summary")
 
-    engine = KPIEngine(REPORTING_DB)
+    engine = KPIEngine(resolve_reporting_database_url(ROOT))
     frames = engine.load_frames()
     latest_date = pd.to_datetime(frames["sales"]["created_date"], errors="raise").max()
     window = DateWindow.ending_on(latest_date, days=7)

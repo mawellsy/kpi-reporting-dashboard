@@ -257,3 +257,29 @@ Business logic depends on a small `SummaryProvider` protocol rather than directl
 - hallucination vs schema validation
 - why numeric grounding is stricter than valid JSON
 - API-key management through environment variables
+
+## Phase 2 — Milestone 9: PostgreSQL reporting database
+
+### Why introduce a database abstraction?
+The original project opened SQLite files directly with `sqlite3`. That is fine for a single-process demo, but it couples application code to one storage engine. Milestone 9 moves reporting access behind SQLAlchemy URLs and engines so the same ETL and KPI code can target PostgreSQL in a deployed environment while tests can remain fast and isolated with SQLite.
+
+### PostgreSQL vs SQLite
+SQLite is an embedded database stored in one local file. It is excellent for tests, prototypes, and small single-user tools. PostgreSQL is a database server designed for concurrent clients and networked applications. It provides stronger operational tooling, connection handling, permissions, backup options, and a more realistic deployment target for a shared management dashboard.
+
+### Connection URLs
+`REPORTING_DATABASE_URL` is configuration, not business logic. A PostgreSQL URL such as `postgresql+psycopg://user:password@host:5432/database` tells SQLAlchemy which dialect and driver to use. The password belongs in `.env` or a deployment secret store and must never be committed.
+
+### Why keep SQLite in tests?
+The important business behavior is deterministic validation, loading, querying, and KPI calculation. SQLite lets the test suite exercise that behavior quickly without requiring a running external service. PostgreSQL-specific integration can be smoke-tested separately when the service is available.
+
+### Indexes
+Indexes trade additional storage/write work for faster lookup and filtering. This project keeps unique indexes on business identifiers and adds/retains indexes around common reporting filters such as date + department. Indexes should be justified by query patterns rather than added to every column reflexively.
+
+### What to study
+- client/server databases vs embedded databases
+- SQLAlchemy engine and connection lifecycle
+- database URLs and drivers
+- PostgreSQL connection strings
+- transactions
+- indexes and uniqueness
+- why unit tests and production infrastructure do not have to use the same database server

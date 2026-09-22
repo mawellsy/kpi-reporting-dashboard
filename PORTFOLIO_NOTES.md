@@ -168,3 +168,36 @@ Automate a multi-source management reporting workflow from raw operational data 
 - I integrate LLMs after deterministic business logic instead of asking the model to invent or calculate operational facts.
 - I use structured outputs, local validation, and grounding checks so AI-generated reports fail safely.
 - I isolate external AI providers behind testable interfaces, which keeps the application maintainable and avoids network-dependent unit tests.
+
+## Phase 2 — Milestone 9: PostgreSQL reporting database
+
+### Problems solved
+- Removed direct SQLite coupling from the reporting read/write path.
+- Added environment-based PostgreSQL configuration suitable for a deployed or multi-service setup.
+- Preserved the existing local SQLite workflow for fast tests and zero-setup demonstrations.
+- Kept deterministic ETL validation and KPI formulas unchanged while replacing the persistence boundary.
+- Preserved useful unique/filter indexes across supported reporting backends.
+- Prevented database passwords from being echoed in normal status output.
+
+### Skills demonstrated
+- PostgreSQL application integration
+- SQLAlchemy engines and connections
+- environment-based database configuration
+- backend-agnostic persistence boundaries
+- database index design
+- safe connection-string logging
+- compatibility testing across local and production-style configuration
+
+### Architectural decision
+PostgreSQL is the intended deployed reporting backend because a management dashboard may have multiple processes or users reading the same reporting data. SQLite remains a deliberate test/local-demo fallback rather than pretending every development environment needs external infrastructure.
+
+### Demo moments
+- show `REPORTING_DATABASE_URL` in `.env.example` without a real credential
+- run the same ETL/KPI commands against a PostgreSQL URL
+- explain that the KPI formulas did not change when the database backend changed
+- show the reporting indexes and explain which query pattern each supports
+
+### Upwork talking points
+- I can migrate a working reporting pipeline from embedded SQLite to production-style PostgreSQL without rewriting business logic.
+- I separate database configuration from application logic so local tests stay simple while deployed services use PostgreSQL.
+- I avoid leaking database credentials in logs and keep schema indexes tied to real reporting access patterns.

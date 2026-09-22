@@ -1,12 +1,21 @@
 from __future__ import annotations
 
-import sqlite3
 from dataclasses import asdict, dataclass
 from datetime import timedelta
 from pathlib import Path
 from typing import Mapping
 
 import pandas as pd
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+
+from .database import (
+    ReportingDatabaseError,
+    create_reporting_engine,
+    database_display_name,
+    normalize_database_url,
+    sqlite_database_path,
+)
 
 
 DEFAULT_WEEKLY_REVENUE_TARGETS: dict[str, float] = {
@@ -296,18 +305,28 @@ class KPIEngine:
     """Read trusted reporting tables and calculate deterministic KPI snapshots."""
 
     def __init__(self, reporting_db: Path | str) -> None:
-        self.reporting_db = Path(reporting_db)
+        self.database_url = normalize_database_url(reporting_db)
 
     def load_frames(self) -> dict[str, pd.DataFrame]:
-        if not self.reporting_db.exists():
-            raise FileNotFoundError(f"reporting database not found: {self.reporting_db}")
-        with sqlite3.connect(self.reporting_db) as conn:
-            return {
-                "sales": pd.read_sql_query("SELECT * FROM sales_clean", conn),
-                "support": pd.read_sql_query("SELECT * FROM support_clean", conn),
-                "operations": pd.read_sql_query("SELECT * FROM operations_clean", conn),
-                "staffing": pd.read_sql_query("SELECT * FROM staffing_clean", conn),
-            }
+        sqlite_path = sqlite_database_path(self.database_url)
+        if sqlite_path is not None and not sqlite_path.exists():
+            raise FileNotFoundError(f"reporting database not found: {sqlite_path}")
+
+        engine = create_reporting_engine(self.database_url)
+        try:
+            with engine.connect() as conn:
+                return {
+                    "sales": pd.read_sql_query(text("SELECT * FROM sales_clean"), conn),
+                    "support": pd.read_sql_query(text("SELECT * FROM support_clean"), conn),
+                    "operations": pd.read_sql_query(text("SELECT * FROM operations_clean"), conn),
+                    "staffing": pd.read_sql_query(text("SELECT * FROM staffing_clean"), conn),
+                }
+        except SQLAlchemyError as exc:
+            raise ReportingDatabaseError(
+                f"could not read reporting database {database_display_name(self.database_url)}"
+            ) from exc
+        finally:
+            engine.dispose()
 
     def snapshot(
         self,
